@@ -2,7 +2,6 @@
 This code for Tag. Temporarily, the ID of Tag is 'this_node'
 */
 
-
 #include <avr/pgmspace.h>
 #include <RF24Network.h>
 #include <RF24.h>
