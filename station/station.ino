@@ -17,6 +17,7 @@ This code for Station. Temporarily, the ID of Station is 'this_node'
 #endif
 
 #define __NAME__ "Station-00"
+#define MAX_NODE 10
 
 // nRF24L01(+) radio using the Getting Started board
 RF24 radio(9,10);
@@ -24,6 +25,7 @@ RF24Network network(radio);
 
 // Our node address
 uint16_t this_node;
+unsigned int active_nodes_array[MAX_NODE][2];
 
 // Delay manager to send pings regularly
 const unsigned long interval = 2000; // ms
@@ -127,21 +129,23 @@ void loop(void)
     bool ok;
 
     // Normal nodes send a 'T' ping
-    if ( this_node > 00 || to == 00 )
+    if ( this_node > 00 || to == 00 ){
       ok = send_T(to);
+    }
     
     // Base node sends the current active nodes out
-    else
+    else{
       ok = send_N(to);
+    }
 
     // Notify us of the result
     if (ok)
     {
-      printf_P(PSTR("%s|%lu: APP Send ok\n\r"), __NAME__, millis());
+      printf_P(PSTR("%s|%lu: Send ok\n\r"), __NAME__, millis());
     }
     else
     {
-      printf_P(PSTR("%s|%lu: APP Send failed\n\r"),__NAME__,millis());
+      printf_P(PSTR("%s|%lu: Send failed\n\r"),__NAME__,millis());
 
       // Try sending at a different time next time
       last_time_sent -= 100;
@@ -162,7 +166,7 @@ bool send_T(uint16_t to)
   // The 'T' message that we send is just a ulong, containing the time
   unsigned long message = this_node;
   printf_P(PSTR("---------------------------------\n\r"));
-  printf_P(PSTR("%s|%lu: APP Sending %lu to 0%o...\n\r"), __NAME__, millis(),message,to);
+  printf_P(PSTR("%s|%lu: [%c] Sending %lu to 0%o...\n\r"), __NAME__, millis(),header.type,message,to);
   return network.write(header,&message,sizeof(unsigned long));
 }
 
@@ -174,7 +178,7 @@ bool send_N(uint16_t to)
   RF24NetworkHeader header(/*to node*/ to, /*type*/ 'N' /*Time*/);
   
   printf_P(PSTR("---------------------------------\n\r"));
-  printf_P(PSTR("%s|%lu: APP Sending active nodes to 0%o...\n\r"),__NAME__,millis(),to);
+  printf_P(PSTR("%s|%lu: [%c] Sending active nodes to 0%o...\n\r"),__NAME__,millis(),header.type,to);
   return network.write(header,active_nodes,sizeof(active_nodes));
 }
 
@@ -188,7 +192,7 @@ void handle_T(RF24NetworkHeader& header)
   // The 'T' message is just a ulong, containing the time
   unsigned long message;
   network.read(header,&message,sizeof(unsigned long));
-  printf_P(PSTR("%s|%lu: APP Received %lu from 0%o\n\r"),__NAME__,millis(),message,header.from_node);
+  printf_P(PSTR("%s|%lu: [%c] Received %lu from 0%o\n\r"),__NAME__,millis(),header.type,message,header.from_node);
 
   // If this message is from ourselves or the base, don't bother adding it to the active nodes.
   if ( header.from_node != this_node || header.from_node > 00 )
@@ -203,7 +207,7 @@ void handle_N(RF24NetworkHeader& header)
   static uint16_t incoming_nodes[max_active_nodes];
 
   network.read(header,&incoming_nodes,sizeof(incoming_nodes));
-  printf_P(PSTR("%s|%lu: APP Received nodes from 0%o\n\r"),__NAME__, millis(),header.from_node);
+  printf_P(PSTR("%s|%lu: [%c] Received active nodes from 0%o\n\r"),__NAME__, millis(),header.type,header.from_node);
 
   int i = 0;
   while ( i < max_active_nodes && incoming_nodes[i] > 00 )
@@ -226,7 +230,7 @@ void add_node(uint16_t node)
   if ( i == -1 && num_active_nodes < max_active_nodes )
   {
     active_nodes[num_active_nodes++] = node; 
-    printf_P(PSTR("%s|%lu: APP Added 0%o to list of active nodes.\n\r"),__NAME__,millis(),node);
+    printf_P(PSTR("%s|%lu: Added 0%o to list of active nodes.\n\r"),__NAME__,millis(),node);
   }
 }
 
